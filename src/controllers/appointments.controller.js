@@ -4,6 +4,15 @@ const {
   changeAppointmentStatus,
 } = require("../services/appointments.service");
 
+const VALID_APPOINTMENT_STATUSES = [
+  "pending",
+  "received",
+  "in-consultation",
+  "completed",
+  "no-show",
+  "cancelled",
+];
+
 async function getAppointments(req, res) {
   try {
     const appointments = await getAllAppointments();
@@ -38,6 +47,12 @@ async function updateAppointmentStatus(req, res) {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
+    if (!VALID_APPOINTMENT_STATUSES.includes(status)) {
+      return res.status(400).json({
+        message: "Estado de turno inválido",
+      });
+    }
 
     const appointment = await changeAppointmentStatus(
       id,
