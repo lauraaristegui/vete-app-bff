@@ -10,9 +10,14 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
+const allowedOrigins = [
+  "http://localhost:3002",
+  "https://vete-app.netlify.app",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3002",
+    origin: allowedOrigins,
   }),
 );
 
