@@ -8,6 +8,8 @@ const consultationsRouter = require("./routes/consultations.routes");
 
 const app = express();
 
+const PORT = process.env.PORT || 3000;
+
 app.use(
   cors({
     origin: "http://localhost:3002",
@@ -20,6 +22,7 @@ app.use("/clients", clientsRouter);
 app.use("/pets", petsRouter);
 app.use("/appointments", appointmentsRouter);
 app.use("/consultations", consultationsRouter);
-app.listen(3000, () => {
-  console.log("Servidor escuchando en http://localhost:3000");
+
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
