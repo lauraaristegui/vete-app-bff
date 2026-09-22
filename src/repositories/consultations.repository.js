@@ -1,22 +1,20 @@
-const { database } = require("../database/database");
+const { pool } = require("../database/postgres");
 
-function getConsultations() {
-  const consultations = database
-    .prepare(`
-      SELECT
-        id,
-        pet_id,
-        date,
-        reason,
-        diagnosis,
-        treatment,
-        observations
-      FROM consultations
-      ORDER BY date DESC
-    `)
-    .all();
+async function getConsultations() {
+  const result = await pool.query(`
+    SELECT
+      id,
+      pet_id,
+      date,
+      reason,
+      diagnosis,
+      treatment,
+      observations
+    FROM consultations
+    ORDER BY date DESC
+  `);
 
-  return consultations.map((consultation) => ({
+  return result.rows.map((consultation) => ({
     id: String(consultation.id),
     petId: String(consultation.pet_id),
     date: consultation.date,
@@ -27,36 +25,40 @@ function getConsultations() {
   }));
 }
 
-function createConsultation(consultationData) {
-  const statement = database.prepare(`
-    INSERT INTO consultations (
-      pet_id,
-      date,
-      reason,
-      diagnosis,
-      treatment,
-      observations
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  const result = statement.run(
-    consultationData.petId,
-    consultationData.date,
-    consultationData.reason,
-    consultationData.diagnosis,
-    consultationData.treatment ?? "",
-    consultationData.observations ?? "",
+async function createConsultation(consultationData) {
+  const result = await pool.query(
+    `
+      INSERT INTO consultations (
+        pet_id,
+        date,
+        reason,
+        diagnosis,
+        treatment,
+        observations
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `,
+    [
+      consultationData.petId,
+      consultationData.date,
+      consultationData.reason,
+      consultationData.diagnosis,
+      consultationData.treatment ?? "",
+      consultationData.observations ?? "",
+    ],
   );
 
+  const consultation = result.rows[0];
+
   return {
-    id: String(result.lastInsertRowid),
-    petId: String(consultationData.petId),
-    date: consultationData.date,
-    reason: consultationData.reason,
-    diagnosis: consultationData.diagnosis,
-    treatment: consultationData.treatment ?? "",
-    observations: consultationData.observations ?? "",
+    id: String(consultation.id),
+    petId: String(consultation.pet_id),
+    date: consultation.date,
+    reason: consultation.reason,
+    diagnosis: consultation.diagnosis,
+    treatment: consultation.treatment ?? "",
+    observations: consultation.observations ?? "",
   };
 }
 

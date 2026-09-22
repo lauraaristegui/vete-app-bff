@@ -1,37 +1,63 @@
 const {
   getAllAppointments,
   addAppointment,
-  changeAppointmentStatus
+  changeAppointmentStatus,
 } = require("../services/appointments.service");
 
+async function getAppointments(req, res) {
+  try {
+    const appointments = await getAllAppointments();
 
-function getAppointments(req, res) {
-  const appointments = getAllAppointments();
+    res.json(appointments);
+  } catch (error) {
+    console.error("Error obteniendo turnos:", error);
 
-  res.json(appointments);
-}
-
-function createAppointment(req, res) {
-  const appointmentData = req.body;
-
-  const appointment = addAppointment(appointmentData);
-
-  res.status(201).json(appointment);
-}
-
-function updateAppointmentStatus(req, res) {
-  const { id } = req.params;
-  const { status } = req.body;
-
-  const appointment = changeAppointmentStatus(id, status);
-
-  if (!appointment) {
-    return res.status(404).json({
-      message: "Turno no encontrado",
+    res.status(500).json({
+      message: "Error al obtener los turnos",
     });
   }
+}
 
-  res.json(appointment);
+async function createAppointment(req, res) {
+  try {
+    const appointmentData = req.body;
+
+    const appointment = await addAppointment(appointmentData);
+
+    res.status(201).json(appointment);
+  } catch (error) {
+    console.error("Error creando turno:", error);
+
+    res.status(500).json({
+      message: "Error al crear el turno",
+    });
+  }
+}
+
+async function updateAppointmentStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const appointment = await changeAppointmentStatus(
+      id,
+      status,
+    );
+
+    if (!appointment) {
+      return res.status(404).json({
+        message: "Turno no encontrado",
+      });
+    }
+
+    res.json(appointment);
+  } catch (error) {
+    console.error("Error actualizando estado del turno:", error);
+
+    res.status(500).json({
+      message: "Error al actualizar el estado del turno",
+    });
+  }
 }
 
 module.exports = {

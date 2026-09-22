@@ -1,11 +1,11 @@
 const petsRepository = require("../repositories/pets.repository");
 
-function getPetById(petId) {
-  return petsRepository.getPetById(petId);
+async function getPetById(petId) {
+  return await petsRepository.getPetById(petId);
 }
 
-function updatePet(petId, petData) {
-  return petsRepository.updatePet(petId, petData);
+async function updatePet(petId, petData) {
+  return await petsRepository.updatePet(petId, petData);
 }
 
 module.exports = {

@@ -1,29 +1,29 @@
 const clientsRepository = require("../repositories/clients.repository");
 
-function getClients() {
-  return clientsRepository.getClients();
+async function getClients() {
+  return await clientsRepository.getClients();
 }
 
-function getClientById(id) {
-  return clientsRepository.getClientById(id);
+async function getClientById(id) {
+  return await clientsRepository.getClientById(id);
 }
 
-function createClient(clientData) {
-  return clientsRepository.createClient(clientData);
+async function createClient(clientData) {
+  return await clientsRepository.createClient(clientData);
 }
 
-function updateClient(id, clientData) {
-  return clientsRepository.updateClient(id, clientData);
+async function updateClient(id, clientData) {
+  return await clientsRepository.updateClient(id, clientData);
 }
 
-function addPet(clientId, petData) {
-  const client = clientsRepository.getClientById(clientId);
+async function addPet(clientId, petData) {
+  const client = await clientsRepository.getClientById(clientId);
 
   if (!client) {
     return undefined;
   }
 
-  return clientsRepository.addPet(clientId, petData);
+  return await clientsRepository.addPet(clientId, petData);
 }
 
 module.exports = {

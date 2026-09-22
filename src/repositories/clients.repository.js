@@ -1,51 +1,63 @@
-const { database } = require("../database/database");
+const { pool } = require("../database/postgres");
 
-function getClients() {
-  const clients = database
-    .prepare(`
-      SELECT * FROM clients
-    `)
-    .all();
+async function getClients() {
+  const clientsResult = await pool.query(`
+    SELECT *
+    FROM clients
+    ORDER BY id
+  `);
 
-  return clients.map((client) => {
-    const pets = database
-      .prepare(`
-        SELECT
-          id,
-          name,
-          species,
-          breed,
-          age
-        FROM pets
-        WHERE client_id = ?
-      `)
-      .all(client.id);
+  const clients = clientsResult.rows;
 
-    return {
-      ...client,
-      id: String(client.id),
-      pets: pets.map((pet) => ({
-        ...pet,
-        id: String(pet.id),
-      })),
-    };
-  });
+  const clientsWithPets = await Promise.all(
+    clients.map(async (client) => {
+      const petsResult = await pool.query(
+        `
+          SELECT
+            id,
+            name,
+            species,
+            breed,
+            age
+          FROM pets
+          WHERE client_id = $1
+          ORDER BY id
+        `,
+        [client.id],
+      );
+
+      return {
+        ...client,
+        id: String(client.id),
+        pets: petsResult.rows.map((pet) => ({
+          ...pet,
+          id: String(pet.id),
+        })),
+      };
+    }),
+  );
+
+  return clientsWithPets;
 }
 
-function getClientById(id) {
-  const client = database
-    .prepare(`
-      SELECT * FROM clients
-      WHERE id = ?
-    `)
-    .get(id);
+async function getClientById(id) {
+  const clientResult = await pool.query(
+    `
+      SELECT *
+      FROM clients
+      WHERE id = $1
+    `,
+    [id],
+  );
+
+  const client = clientResult.rows[0];
 
   if (!client) {
     return undefined;
   }
 
-  const pets = database
-    .prepare(`
+  const petsResult = await pool.query(
+    `
       SELECT
         id,
         name,
@@ -53,48 +65,64 @@ function getClientById(id) {
         breed,
         age
       FROM pets
-      WHERE client_id = ?
-    `)
-    .all(id);
+      WHERE client_id = $1
+      ORDER BY id
+    `,
+    [id],
+  );
 
   return {
     ...client,
     id: String(client.id),
-    pets: pets.map((pet) => ({
+    pets: petsResult.rows.map((pet) => ({
       ...pet,
       id: String(pet.id),
     })),
   };
 }
 
-function createClient(clientData) {
-  const statement = database.prepare(`
-    INSERT INTO clients (name, dni, phone, email, address)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const result = statement.run(
-    clientData.name,
-    clientData.dni,
-    clientData.phone,
-    clientData.email,
-    clientData.address,
+async function createClient(clientData) {
+  const result = await pool.query(
+    `
+      INSERT INTO clients (
+        name,
+        dni,
+        phone,
+        email,
+        address
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `,
+    [
+      clientData.name,
+      clientData.dni,
+      clientData.phone,
+      clientData.email,
+      clientData.address,
+    ],
   );
 
+  const client = result.rows[0];
+
   return {
-    id: String(result.lastInsertRowid),
-    ...clientData,
+    ...client,
+    id: String(client.id),
     pets: [],
   };
 }
 
-function updateClient(id, clientData) {
-  const currentClient = database
-    .prepare(`
-      SELECT * FROM clients
-      WHERE id = ?
-    `)
-    .get(id);
+async function updateClient(id, clientData) {
+  const currentClientResult = await pool.query(
+    `
+      SELECT *
+      FROM clients
+      WHERE id = $1
+    `,
+    [id],
+  );
+
+  const currentClient = currentClientResult.rows[0];
 
   if (!currentClient) {
     return undefined;
@@ -105,47 +133,61 @@ function updateClient(id, clientData) {
     ...clientData,
   };
 
-  database
-    .prepare(`
+  await pool.query(
+    `
       UPDATE clients
       SET
-        name = ?,
-        dni = ?,
-        phone = ?,
-        email = ?,
-        address = ?
-      WHERE id = ?
-    `)
-    .run(
+        name = $1,
+        dni = $2,
+        phone = $3,
+        email = $4,
+        address = $5
+      WHERE id = $6
+    `,
+    [
       updatedClient.name,
       updatedClient.dni,
       updatedClient.phone,
       updatedClient.email,
       updatedClient.address,
       id,
-    );
+    ],
+  );
 
   return getClientById(id);
 }
 
-function addPet(clientId, petData) {
-  const statement = database.prepare(`
-    INSERT INTO pets (client_id, name, species, breed, age)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const result = statement.run(
-    clientId,
-    petData.name,
-    petData.species,
-    petData.breed,
-    petData.age,
+async function addPet(clientId, petData) {
+  const result = await pool.query(
+    `
+      INSERT INTO pets (
+        client_id,
+        name,
+        species,
+        breed,
+        age
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `,
+    [
+      clientId,
+      petData.name,
+      petData.species,
+      petData.breed,
+      petData.age,
+    ],
   );
 
+  const pet = result.rows[0];
+
   return {
-    id: String(result.lastInsertRowid),
-    clientId,
-    ...petData,
+    id: String(pet.id),
+    clientId: String(pet.client_id),
+    name: pet.name,
+    species: pet.species,
+    breed: pet.breed,
+    age: pet.age,
   };
 }
 

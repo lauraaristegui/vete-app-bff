@@ -1,35 +1,33 @@
-const { database } = require("../database/database");
+const { pool } = require("../database/postgres");
 
-function getAppointments() {
-  const appointments = database
-    .prepare(`
-      SELECT
-        appointments.id,
-        appointments.pet_id,
-        appointments.date,
-        appointments.time,
-        appointments.veterinarian,
-        appointments.status,
+async function getAppointments() {
+  const result = await pool.query(`
+    SELECT
+      appointments.id,
+      appointments.pet_id,
+      appointments.date,
+      appointments.time,
+      appointments.veterinarian,
+      appointments.status,
 
-        pets.name AS pet_name,
-        pets.species,
+      pets.name AS pet_name,
+      pets.species,
 
-        clients.name AS owner_name,
-        clients.dni
+      clients.name AS owner_name,
+      clients.dni
 
-      FROM appointments
+    FROM appointments
 
-      JOIN pets
-        ON appointments.pet_id = pets.id
+    JOIN pets
+      ON appointments.pet_id = pets.id
 
-      JOIN clients
-        ON pets.client_id = clients.id
+    JOIN clients
+      ON pets.client_id = clients.id
 
-      ORDER BY appointments.date, appointments.time
-    `)
-    .all();
+    ORDER BY appointments.date, appointments.time
+  `);
 
-  return appointments.map((appointment) => ({
+  return result.rows.map((appointment) => ({
     id: String(appointment.id),
     petId: String(appointment.pet_id),
     date: appointment.date,
@@ -45,9 +43,9 @@ function getAppointments() {
   }));
 }
 
-function getAppointmentById(id) {
-  const appointment = database
-    .prepare(`
+async function getAppointmentById(id) {
+  const result = await pool.query(
+    `
       SELECT
         appointments.id,
         appointments.pet_id,
@@ -70,9 +68,12 @@ function getAppointmentById(id) {
       JOIN clients
         ON pets.client_id = clients.id
 
-      WHERE appointments.id = ?
-    `)
-    .get(id);
+      WHERE appointments.id = $1
+    `,
+    [id],
+  );
+
+  const appointment = result.rows[0];
 
   if (!appointment) {
     return undefined;
@@ -85,50 +86,56 @@ function getAppointmentById(id) {
     time: appointment.time,
     veterinarian: appointment.veterinarian,
     status: appointment.status,
+
     petName: appointment.pet_name,
     species: appointment.species,
+
     ownerName: appointment.owner_name,
     dni: appointment.dni,
   };
 }
 
-function createAppointment(appointmentData) {
-  const statement = database.prepare(`
-    INSERT INTO appointments (
-      pet_id,
-      date,
-      time,
-      veterinarian,
-      status
-    )
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const result = statement.run(
-    appointmentData.petId,
-    appointmentData.date,
-    appointmentData.time,
-    appointmentData.veterinarian,
-    appointmentData.status ?? "pending",
+async function createAppointment(appointmentData) {
+  const result = await pool.query(
+    `
+      INSERT INTO appointments (
+        pet_id,
+        date,
+        time,
+        veterinarian,
+        status
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `,
+    [
+      appointmentData.petId,
+      appointmentData.date,
+      appointmentData.time,
+      appointmentData.veterinarian,
+      appointmentData.status ?? "pending",
+    ],
   );
 
-  return getAppointmentById(result.lastInsertRowid);
+  return await getAppointmentById(result.rows[0].id);
 }
 
-function updateAppointmentStatus(id, status) {
-  const statement = database.prepare(`
-    UPDATE appointments
-    SET status = ?
-    WHERE id = ?
-  `);
+async function updateAppointmentStatus(id, status) {
+  const result = await pool.query(
+    `
+      UPDATE appointments
+      SET status = $1
+      WHERE id = $2
+      RETURNING id
+    `,
+    [status, id],
+  );
 
-  const result = statement.run(status, id);
-
-  if (result.changes === 0) {
+  if (result.rows.length === 0) {
     return undefined;
   }
 
-  return getAppointmentById(id);
+  return await getAppointmentById(id);
 }
 
 module.exports = {

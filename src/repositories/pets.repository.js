@@ -1,8 +1,8 @@
+const { pool } = require("../database/postgres");
 
-const { database } = require("../database/database");
-function getPetById(petId) {
-  const pet = database
-    .prepare(`
+async function getPetById(petId) {
+  const result = await pool.query(
+    `
       SELECT
         id,
         client_id,
@@ -11,28 +11,38 @@ function getPetById(petId) {
         breed,
         age
       FROM pets
-      WHERE id = ?
-    `)
-    .get(petId);
+      WHERE id = $1
+    `,
+    [petId],
+  );
+
+  const pet = result.rows[0];
 
   if (!pet) {
     return undefined;
   }
 
   return {
-    ...pet,
     id: String(pet.id),
     clientId: String(pet.client_id),
+    name: pet.name,
+    species: pet.species,
+    breed: pet.breed,
+    age: pet.age,
   };
 }
 
-function updatePet(petId, petData) {
-  const currentPet = database
-    .prepare(`
-      SELECT * FROM pets
-      WHERE id = ?
-    `)
-    .get(petId);
+async function updatePet(petId, petData) {
+  const currentPetResult = await pool.query(
+    `
+      SELECT *
+      FROM pets
+      WHERE id = $1
+    `,
+    [petId],
+  );
+
+  const currentPet = currentPetResult.rows[0];
 
   if (!currentPet) {
     return undefined;
@@ -43,26 +53,28 @@ function updatePet(petId, petData) {
     ...petData,
   };
 
-  database
-    .prepare(`
+  await pool.query(
+    `
       UPDATE pets
       SET
-        name = ?,
-        species = ?,
-        breed = ?,
-        age = ?
-      WHERE id = ?
-    `)
-    .run(
+        name = $1,
+        species = $2,
+        breed = $3,
+        age = $4
+      WHERE id = $5
+    `,
+    [
       updatedPet.name,
       updatedPet.species,
       updatedPet.breed,
       updatedPet.age,
       petId,
-    );
+    ],
+  );
 
-  return getPetById(petId);
+  return await getPetById(petId);
 }
+
 module.exports = {
   getPetById,
   updatePet,

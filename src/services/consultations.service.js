@@ -3,12 +3,12 @@ const {
   createConsultation,
 } = require("../repositories/consultations.repository");
 
-function getAllConsultations() {
-  return getConsultations();
+async function getAllConsultations() {
+  return await getConsultations();
 }
 
-function addConsultation(consultationData) {
-  return createConsultation(consultationData);
+async function addConsultation(consultationData) {
+  return await createConsultation(consultationData);
 }
 
 module.exports = {

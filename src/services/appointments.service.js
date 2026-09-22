@@ -4,17 +4,16 @@ const {
   updateAppointmentStatus,
 } = require("../repositories/appointments.repository");
 
-
-function getAllAppointments() {
-  return getAppointments();
+async function getAllAppointments() {
+  return await getAppointments();
 }
 
-function addAppointment(appointmentData) {
-  return createAppointment(appointmentData);
+async function addAppointment(appointmentData) {
+  return await createAppointment(appointmentData);
 }
 
-function changeAppointmentStatus(id, status) {
-  return updateAppointmentStatus(id, status);
+async function changeAppointmentStatus(id, status) {
+  return await updateAppointmentStatus(id, status);
 }
 
 module.exports = {
