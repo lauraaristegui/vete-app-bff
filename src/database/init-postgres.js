@@ -34,6 +34,14 @@ async function initializeDatabase() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS veterinarians (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT TRUE
+      );
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS appointments (
         id SERIAL PRIMARY KEY,
         pet_id INTEGER NOT NULL,
@@ -45,6 +53,39 @@ async function initializeDatabase() {
           FOREIGN KEY (pet_id)
           REFERENCES pets(id)
       );
+    `);
+
+    // Agregamos la nueva columna veterinarian_id
+    await pool.query(`
+      ALTER TABLE appointments
+      ADD COLUMN IF NOT EXISTS veterinarian_id INTEGER;
+    `);
+
+    // Relacionamos appointments con veterinarians
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'fk_appointments_veterinarian'
+        ) THEN
+          ALTER TABLE appointments
+          ADD CONSTRAINT fk_appointments_veterinarian
+            FOREIGN KEY (veterinarian_id)
+            REFERENCES veterinarians(id);
+        END IF;
+      END $$;
+    `);
+
+    // Migramos los turnos existentes.
+    // Busca el veterinario por nombre y guarda su id.
+    await pool.query(`
+      UPDATE appointments
+      SET veterinarian_id = veterinarians.id
+      FROM veterinarians
+      WHERE appointments.veterinarian = veterinarians.name
+        AND appointments.veterinarian_id IS NULL;
     `);
 
     await pool.query(`

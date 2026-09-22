@@ -5,10 +5,12 @@ async function getAppointments() {
     SELECT
       appointments.id,
       appointments.pet_id,
+      appointments.veterinarian_id,
       appointments.date,
       appointments.time,
-      appointments.veterinarian,
       appointments.status,
+
+      veterinarians.name AS veterinarian,
 
       pets.name AS pet_name,
       pets.species,
@@ -24,15 +26,22 @@ async function getAppointments() {
     JOIN clients
       ON pets.client_id = clients.id
 
+    JOIN veterinarians
+      ON appointments.veterinarian_id = veterinarians.id
+
     ORDER BY appointments.date, appointments.time
   `);
 
   return result.rows.map((appointment) => ({
     id: String(appointment.id),
     petId: String(appointment.pet_id),
+
     date: appointment.date,
     time: appointment.time,
+
+    veterinarianId: String(appointment.veterinarian_id),
     veterinarian: appointment.veterinarian,
+
     status: appointment.status,
 
     petName: appointment.pet_name,
@@ -49,10 +58,12 @@ async function getAppointmentById(id) {
       SELECT
         appointments.id,
         appointments.pet_id,
+        appointments.veterinarian_id,
         appointments.date,
         appointments.time,
-        appointments.veterinarian,
         appointments.status,
+
+        veterinarians.name AS veterinarian,
 
         pets.name AS pet_name,
         pets.species,
@@ -68,6 +79,9 @@ async function getAppointmentById(id) {
       JOIN clients
         ON pets.client_id = clients.id
 
+      JOIN veterinarians
+        ON appointments.veterinarian_id = veterinarians.id
+
       WHERE appointments.id = $1
     `,
     [id],
@@ -82,9 +96,13 @@ async function getAppointmentById(id) {
   return {
     id: String(appointment.id),
     petId: String(appointment.pet_id),
+
     date: appointment.date,
     time: appointment.time,
+
+    veterinarianId: String(appointment.veterinarian_id),
     veterinarian: appointment.veterinarian,
+
     status: appointment.status,
 
     petName: appointment.pet_name,
@@ -102,20 +120,33 @@ async function createAppointment(appointmentData) {
         pet_id,
         date,
         time,
+        veterinarian_id,
         veterinarian,
         status
       )
-      VALUES ($1, $2, $3, $4, $5)
+      SELECT
+        $1,
+        $2,
+        $3,
+        veterinarians.id,
+        veterinarians.name,
+        $5
+      FROM veterinarians
+      WHERE veterinarians.id = $4
       RETURNING id
     `,
     [
       appointmentData.petId,
       appointmentData.date,
       appointmentData.time,
-      appointmentData.veterinarian,
+      appointmentData.veterinarianId,
       appointmentData.status ?? "pending",
     ],
   );
+
+  if (result.rows.length === 0) {
+    return undefined;
+  }
 
   return await getAppointmentById(result.rows[0].id);
 }
